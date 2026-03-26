@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGR – Gestión de Depósitos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Variables ── */
+    :root {
+      --primary:       #2563eb;
+      --primary-d:     #1d4ed8;
+      --success:       #16a34a;
+      --success-d:     #15803d;
+      --warning:       #d97706;
+      --warning-d:     #b45309;
+      --danger:        #dc2626;
+      --bg:            linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);
+      --surface:       #ffffff;
+      --surface-2:     #f8fafc;
+      --border:        #e2e8f0;
+      --text:          #0f172a;
+      --muted:         #64748b;
+      --radius:        0.625rem;
+      --shadow-sm:     0 1px 3px rgba(0,0,0,.08);
+      --shadow-md:     0 4px 16px rgba(0,0,0,.12);
+      --shadow-lg:     0 20px 40px rgba(0,0,0,.25);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+    }
+
+    /* ── Reusables ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .55rem 1.1rem; border: none; border-radius: var(--radius);
+      font-family: inherit; font-size: .875rem; font-weight: 600;
+      cursor: pointer; transition: background .18s, transform .1s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary  { background: var(--primary);  color:#fff; }
+    .btn-primary:hover  { background: var(--primary-d); }
+    .btn-success  { background: var(--success);  color:#fff; }
+    .btn-success:hover  { background: var(--success-d); }
+    .btn-warning  { background: var(--warning);  color:#fff; }
+    .btn-warning:hover  { background: var(--warning-d); }
+    .btn-ghost    { background: #f1f5f9; color: var(--muted); }
+    .btn-ghost:hover    { background: #e2e8f0; }
+    .btn:disabled { opacity:.55; cursor:not-allowed; transform:none; }
+
+    .field label {
+      display:block; font-size:.8rem; font-weight:500;
+      margin-bottom:.35rem; color: var(--muted);
+    }
+    .field input, .field select, .field textarea {
+      width:100%; padding:.6rem .8rem;
+      border:1.5px solid var(--border); border-radius: var(--radius);
+      font-family:inherit; font-size:.875rem; color: var(--text);
+      background: #fff; transition: border-color .2s, box-shadow .2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline:none; border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+    .field textarea { resize:vertical; min-height:64px; }
+    .req { color: var(--danger); }
+
+    /* ── Login ── */
+    .login-card {
+      background: var(--surface); border-radius:1rem;
+      padding:2.5rem; width:100%; max-width:400px;
+      box-shadow: var(--shadow-lg);
+      animation: fadeUp .3s ease;
+    }
+    .login-card h1 { margin:0 0 .4rem; font-size:1.4rem; }
+    .login-card p  { margin:0 0 1.75rem; color: var(--muted); font-size:.875rem; }
+    .login-card .field { margin-bottom:1.1rem; }
+    .btn-login { width:100%; justify-content:center; padding:.75rem; font-size:.95rem; }
+    #msg-login { min-height:1.2em; font-size:.8rem; color:var(--danger); text-align:center; margin-top:.75rem; }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(16px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* ── Dashboard ── */
+    #app {
+      display:none; flex-direction:column;
+      width:97%; max-width:1280px; height:92vh;
+      background: var(--surface-2); border-radius:1rem;
+      overflow:hidden; box-shadow: var(--shadow-lg);
+    }
+
+    /* Header */
+    .app-header {
+      background: var(--surface); border-bottom:1px solid var(--border);
+      padding:.6rem 1.5rem; display:flex; align-items:center; gap:1rem;
+      flex-shrink:0;
+    }
+    .app-header h2 { margin:0; font-size:1.05rem; flex:1; }
+    .app-logo { height:44px; width:auto; object-fit:contain; flex-shrink:0; }
+
+    /* Login logo */
+    .login-logo { display:block; height:56px; width:auto; margin:0 auto 1.25rem; }
+
+    /* Search panel */
+    .search-panel {
+      background: var(--surface); border-bottom:1px solid var(--border);
+      padding:1rem 1.5rem; flex-shrink:0;
+    }
+
+    /* Tabs */
+    .tabs { display:flex; gap:.5rem; margin-bottom:.9rem; }
+    .tab  {
+      padding:.4rem 1rem; border-radius:2rem; font-size:.8rem; font-weight:600;
+      border:1.5px solid var(--border); background:#fff; cursor:pointer;
+      color: var(--muted); transition: all .18s;
+    }
+    .tab.active { background: var(--primary); color:#fff; border-color: var(--primary); }
+
+    /* Tab content */
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+
+    /* Rango: grid de filtros */
+    .filtros-grid {
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap:.65rem .75rem;
+      margin-bottom:.75rem;
+    }
+    .filtros-grid .field { margin:0; }
+    .filtros-grid .field label { font-size:.72rem; }
+    .filtros-grid .field input,
+    .filtros-grid .field select { padding:.5rem .7rem; font-size:.82rem; }
+    .filtros-fechas {
+      display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap;
+      margin-bottom:.75rem;
+    }
+    .filtros-fechas .field { margin:0; flex:1; min-width:150px; }
+    .filtros-fechas .field label { font-size:.72rem; }
+    .filtros-acciones { display:flex; gap:.5rem; }
+
+    /* Tab campo: mantener fila simple */
+    #tab-campo.active { display:flex; gap:.75rem; align-items:flex-end; flex-wrap:wrap; }
+    #tab-campo .field { margin:0; flex:1; min-width:160px; }
+    #tab-campo .field label { font-size:.75rem; }
+
+    /* Grid */
+    .grid-wrap {
+      flex:1; overflow:auto; padding:1rem 1.5rem;
+    }
+
+    table {
+      width:100%; border-collapse:collapse;
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); overflow:hidden;
+      font-size:.82rem;
+    }
+    thead th {
+      background:#f1f5f9; padding:.65rem 1rem;
+      text-align:left; font-size:.7rem; text-transform:uppercase;
+      letter-spacing:.05em; color: var(--muted); white-space:nowrap;
+      position:sticky; top:0; z-index:1;
+    }
+    tbody td { padding:.65rem 1rem; border-bottom:1px solid #f1f5f9; }
+    tbody tr:hover td { background:#f8fafc; }
+    tbody tr:last-child td { border-bottom:none; }
+
+    .badge {
+      display:inline-block; padding:.2rem .6rem; border-radius:2rem;
+      font-size:.7rem; font-weight:600; white-space:nowrap;
+    }
+    .badge-cancelado    { background:#dcfce7; color:#15803d; }
+    .badge-pendiente    { background:#fef9c3; color:#854d0e; }
+    .badge-anulado      { background:#fee2e2; color:#b91c1c; }
+    .badge-online       { background:#dbeafe; color:#1d4ed8; }
+    .badge-cobrar       { background:#ffedd5; color:#c2410c; }
+    .badge-compensacion { background:#ede9fe; color:#6d28d9; }
+    .badge-otros        { background:#f1f5f9; color:#475569; }
+
+    /* ── Modal base ── */
+    .overlay {
+      display:none; position:fixed; inset:0;
+      background:rgba(15,23,42,.55); backdrop-filter:blur(4px);
+      z-index:200; align-items:center; justify-content:center;
+    }
+    .overlay.open { display:flex; }
+
+    .modal {
+      background: var(--surface); border-radius:1rem;
+      padding:1.75rem; width:100%; max-width:580px;
+      max-height:92vh; overflow-y:auto;
+      box-shadow: var(--shadow-lg);
+      animation: fadeUp .22s ease;
+    }
+    .modal-hdr {
+      display:flex; justify-content:space-between; align-items:center;
+      margin-bottom:1.25rem; padding-bottom:1rem;
+      border-bottom:1px solid var(--border);
+    }
+    .modal-hdr h3 { margin:0; font-size:1.05rem; }
+    .modal-close {
+      background:#f1f5f9; border:none; border-radius:.375rem;
+      width:2rem; height:2rem; font-size:1rem;
+      cursor:pointer; color: var(--muted); display:flex;
+      align-items:center; justify-content:center; transition:background .18s;
+    }
+    .modal-close:hover { background:#e2e8f0; }
+
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .row2 .field { margin-bottom:.9rem; }
+    .field { margin-bottom:.9rem; }
+
+    .modal-foot { margin-top:.25rem; }
+    .modal-foot .btn { width:100%; justify-content:center; padding:.7rem; font-size:.95rem; }
+    .modal-msg { min-height:1.1em; font-size:.82rem; text-align:center; margin-top:.6rem; }
+    .modal-msg.ok    { color: var(--success); }
+    .modal-msg.err   { color: var(--danger); }
+
+    /* ── Upload area ── */
+    .drop-zone {
+      border:2.5px dashed var(--border); border-radius: var(--radius);
+      padding:2rem 1rem; text-align:center; cursor:pointer;
+      transition:border-color .2s, background .2s;
+      background:#fafafa;
+    }
+    .drop-zone:hover, .drop-zone.over {
+      border-color: var(--warning); background:#fffbeb;
+    }
+    .drop-zone .icon { font-size:2.5rem; display:block; margin-bottom:.5rem; }
+    .drop-zone p { margin:.25rem 0; font-size:.85rem; color: var(--muted); }
+    .drop-zone strong { color: var(--text); font-size:.9rem; }
+
+    #csv-preview {
+      margin-top:1rem; font-size:.78rem; overflow-x:auto;
+      max-height:180px; border-radius: var(--radius);
+      border:1px solid var(--border); display:none;
+    }
+    #csv-preview table { box-shadow:none; font-size:.75rem; }
+    #csv-preview th { font-size:.68rem; }
+
+    .upload-log {
+      margin-top:.75rem; font-size:.8rem; display:none;
+      background:#f8fafc; border-radius: var(--radius);
+      padding:.75rem 1rem; border:1px solid var(--border);
+      max-height:120px; overflow-y:auto;
+    }
+    .upload-log li { margin-bottom:.2rem; }
+
+    /* ── Paginación ── */
+    .pag-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      flex-wrap:wrap; gap:.5rem;
+      padding:.75rem 1.5rem; background:var(--surface);
+      border-top:1px solid var(--border); flex-shrink:0; font-size:.82rem;
+    }
+    .pag-info { color:var(--muted); }
+    .pag-info strong { color:var(--text); }
+    .pag-controles { display:flex; align-items:center; gap:.35rem; }
+    .pag-btn {
+      min-width:2rem; height:2rem; padding:0 .5rem;
+      border:1.5px solid var(--border); border-radius:.4rem;
+      background:#fff; cursor:pointer; font-size:.8rem; font-weight:600;
+      color:var(--muted); transition:all .15s; display:inline-flex;
+      align-items:center; justify-content:center;
+    }
+    .pag-btn:hover:not(:disabled) { border-color:var(--primary); color:var(--primary); background:#eff6ff; }
+    .pag-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+    .pag-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .pag-size { display:flex; align-items:center; gap:.4rem; color:var(--muted); }
+    .pag-size select {
+      padding:.25rem .5rem; border:1.5px solid var(--border);
+      border-radius:.4rem; font-size:.8rem; font-family:inherit;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div id="login-card" class="login-card">
+    <img class="login-logo" src="C:\Users\jsalcedo.RDLPSD\sistema-depositos\logo Compuesto.png">
+  <h1 style="text-align: center;">Bienvenido al Sistema Depositos</h1>
+  <p>Ingresa tus credenciales para continuar</p>
+  <div class="field"><label>Usuario</label><input id="l-user" type="text" placeholder="usuario"></div>
+  <div class="field"><label>Contraseña</label><input id="l-pass" type="password" placeholder="••••••••"
+    onkeydown="if(event.key==='Enter')login()"></div>
+  <button class="btn btn-primary btn-login" onclick="login()">Iniciar sesión</button>
+  <div id="msg-login"></div>
+</div>
+
+<!-- ═══════════ APP ═══════════ -->
+<div id="app">
+
+  <!-- Header -->
+  <div class="app-header">
+    <img class="login-logo" src="C:\Users\jsalcedo.RDLPSD\sistema-depositos\logo Compuesto.png">
+    <h2 style="text-align: center;">Sistema Depósitos Bancarios</h2>
+    <button class="btn btn-warning" onclick="abrirCsv()">📂 Cargar CSV</button>
+    <button class="btn btn-success" onclick="abrirNuevo()">＋ Nuevo Depósito</button>
+    <button class="btn btn-ghost" onclick="cerrarSesion()">⏏ Salir</button>
+  </div>
+
+  <!-- Search panel -->
+  <div class="search-panel">
+    <div class="tabs">
+      <div class="tab active" onclick="setTabAndSave('rango')">📅 Rango de fechas</div>
+      <div class="tab" onclick="setTabAndSave('campo')">🔍 Buscar por campo</div>
+    </div>
+
+    <!-- Tab: rango -->
+    <div class="tab-pane active" id="tab-rango">
+      <!-- Fechas -->
+      <div class="filtros-fechas">
+        <div class="field">
+          <label>Fecha desde</label>
+          <input type="datetime-local" id="s-desde">
+        </div>
+        <div class="field">
+          <label>Fecha hasta</label>
+          <input type="datetime-local" id="s-hasta">
+        </div>
+        <div class="filtros-acciones">
+          <button class="btn btn-primary" onclick="buscar()">🔍 Buscar</button>
+          <button class="btn btn-ghost"   onclick="limpiarBusqueda()">✕ Limpiar</button>
+        </div>
+      </div>
+      <!-- Filtros adicionales -->
+      <div class="filtros-grid">
+        <div class="field">
+          <label>Nro. Trámite</label>
+          <input type="text" id="r-tramite" placeholder="Buscar Nro. trámite…">
+        </div>
+        <div class="field">
+          <label>Título</label>
+          <input type="text" id="r-titulo" placeholder="Buscar Nro. título…">
+        </div>
+        <div class="field">
+          <label>Referencia / Transferencia</label>
+          <input type="text" id="r-referencia" placeholder="Buscar Nro. transferencia…">
+        </div>
+        <div class="field">
+          <label>Monto</label>
+          <input type="number" id="r-monto" placeholder="Ej: 150.00" step="0.01" min="0">
+        </div>
+        <div class="field">
+          <label>Voucher ID</label>
+          <input type="text" id="r-voucher" placeholder="ID voucher…">
+        </div>
+        <div class="field">
+          <label>Estado de Pago</label>
+          <select id="r-estado">
+            <option value="">— Todos —</option>
+            <option value="CANCELADO">Cancelado</option>
+            <option value="PENDIENTE">Pendiente de Pago</option>
+            <option value="ANULADO">Anulado</option>
+            <option value="PAGO ONLINE">Pago Online</option>
+            <option value="CTA POR COBRAR">Cta por Cobrar</option>
+            <option value="COMPENSACION">Compensación</option>
+            <option value="OTROS">Otros tipos de ingreso</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tipo de Pago</label>
+          <select id="r-tipo">
+            <option value="">— Todos —</option>
+            <option value="EFECTIVO">Efectivo</option>
+            <option value="NOTA DE CREDITO">Nota de Crédito</option>
+            <option value="CHEQUE">Cheque</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
+            <OPTION value="TARJETA">Tarjeta</OPTION>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: campo -->
+    <div class="tab-pane" id="tab-campo">
+      <div class="field">
+        <label>Campo</label>
+        <select id="s-campo">
+          <option value="tramite">Nro. Trámite</option>
+          <option value="titulo">Título</option>
+          <option value="referencia">Referencia / Transferencia</option>
+          <option value="monto">Monto</option>
+          <option value="voucher">Voucher ID</option>
+          <option value="estado">Estado de Pago</option>
+          <option value="tipo">Tipo de Pago</option>
+        </select>
+      </div>
+      <div class="field" style="flex:2">
+        <label>Valor a buscar</label>
+        <input type="text" id="s-valor" placeholder="Escriba aquí…"
+               onkeydown="if(event.key==='Enter')buscar()">
+      </div>
+      <button class="btn btn-primary" onclick="buscar()">🔍 Buscar</button>
+      <button class="btn btn-ghost"   onclick="limpiarBusqueda()">✕ Limpiar</button>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="grid-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Trámite</th>
+          <th>Título</th>
+          <th>Referencia / Transferencia</th>
+          <th>Monto</th>
+          <th>Voucher ID</th>
+          <th>Estado</th>
+          <th>Tipo Pago</th>
+        </tr>
+      </thead>
+      <tbody id="tbl">
+        <tr><td colspan="8" style="text-align:center;padding:2.5rem;color:#94a3b8;">
+          Seleccione un filtro y presione Buscar
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paginación -->
+  <div class="pag-bar" id="pag-bar" style="display:none">
+    <div class="pag-info" id="pag-info">—</div>
+    <div class="pag-controles" id="pag-controles"></div>
+    <div class="pag-size">
+      Mostrar
+      <select id="pag-size" onchange="cambiarTamano(this.value)">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+      </select>
+      por página
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: NUEVO DEPÓSITO ═══════════ -->
+<div class="overlay" id="ov-nuevo" onclick="cerrarSiFuera(event,'ov-nuevo')">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3>➕ Registrar Nuevo Depósito</h3>
+      <button class="modal-close" onclick="cerrar('ov-nuevo')">✕</button>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label>Fecha de Pago <span class="req">*</span></label>
+        <input type="date" id="n-fecha"></div>
+      <div class="field"><label>Monto <span class="req">*</span></label>
+        <input type="number" id="n-monto" placeholder="0.00" step="0.01" min="0"></div>
+    </div>
+    <div class="field"><label>Nro. Transferencia / Depósito <span class="req">*</span></label>
+      <input type="text" id="n-ref" placeholder="Ej: 0012345678"></div>
+    <div class="row2">
+      <div class="field"><label>Banco</label>
+        <input type="text" id="n-banco" placeholder="Ej: Banco Pichincha"></div>
+      <div class="field"><label>Tipo de Pago</label>
+        <select id="n-tipo">
+          <option value="">— Seleccione —</option>
+          <option value="1">Efectivo</option>
+          <option value="2">Nota de Crédito</option>
+          <option value="3">Cheque</option>
+          <option value="4">Transferencia</option>
+          <option value="5">Tarjeta</option>
+        </select></div>
+    </div>
+    <div class="field"><label>Número de Trámite</label>
+      <input type="text" id="n-tramite" placeholder="Ej: Nro. trámite…"></div>
+    <div class="field"><label>Descripción / Observación</label>
+      <textarea id="n-desc" placeholder="Observaciones adicionales…"></textarea></div>
+
+    <div class="modal-foot">
+      <button class="btn btn-success" id="btn-guardar" onclick="insertarDeposito()">
+        💾 Guardar Depósito
+      </button>
+    </div>
+    <div class="modal-msg" id="msg-nuevo"></div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: CARGAR CSV ═══════════ -->
+<div class="overlay" id="ov-csv" onclick="cerrarSiFuera(event,'ov-csv')">
+  <div class="modal" style="max-width:660px">
+    <div class="modal-hdr">
+      <h3>📂 Cargar Archivo CSV Bancario</h3>
+      <button class="modal-close" onclick="cerrar('ov-csv')">✕</button>
+    </div>
+
+    <p style="font-size:.82rem;color:var(--muted);margin:0 0 1rem">
+      Sube el CSV exportado del banco. Columnas esperadas:
+      <strong>Fecha, Codigo, Concepto, Tipo, Documento, Oficina, Monto, Saldo</strong>
+      (equivalente a <code>cargar_datos.prg</code>).
+      Los registros ya existentes por número de documento se omiten automáticamente.
+    </p>
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="drop-zone"
+         onclick="document.getElementById('input-csv').click()"
+         ondragover="dragOver(event)" ondragleave="dragLeave(event)"
+         ondrop="dropFile(event)">
+      <span class="icon">📄</span>
+      <strong id="drop-label">Arrastra tu CSV aquí o haz clic para seleccionar</strong>
+      <p id="drop-sub">Archivos .csv – máx 10 MB</p>
+    </div>
+    <input type="file" id="input-csv" accept=".csv" style="display:none"
+           onchange="seleccionarArchivo(this.files[0])">
+
+    <!-- Preview -->
+    <div id="csv-preview"></div>
+
+    <!-- Log resultado -->
+    <ul class="upload-log" id="upload-log"></ul>
+
+    <div class="modal-foot" style="margin-top:1rem">
+      <button class="btn btn-warning" id="btn-cargar" onclick="cargarCsv()" disabled>
+        ⬆ Cargar y Procesar
+      </button>
+    </div>
+    <div class="modal-msg" id="msg-csv"></div>
+  </div>
+</div>
+
+<!-- ═══════════ SCRIPT ═══════════ -->
+<script>
+const API = 'http://localhost:3000/api';
+let csvFile     = null;
+let modoActivo  = 'rango';
+let pagActual   = 1;
+let porPagina   = 50;
+let ultimaQuery = null;
+
+// ── Persistencia de sesión (survives F5) ──
+const SESSION_KEY = 'sgr_session';
+
+function guardarSesion() {
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+    logueado: true,
+    modoActivo,
+    pagActual,
+    porPagina,
+    query: ultimaQuery ? ultimaQuery.toString() : null,
+    sDesde: document.getElementById('s-desde')?.value || '',
+    sHasta: document.getElementById('s-hasta')?.value || '',
+    rTramite:    document.getElementById('r-tramite')?.value    || '',
+    rTitulo:     document.getElementById('r-titulo')?.value     || '',
+    rReferencia: document.getElementById('r-referencia')?.value || '',
+    rMonto:      document.getElementById('r-monto')?.value      || '',
+    rVoucher:    document.getElementById('r-voucher')?.value    || '',
+    rEstado:     document.getElementById('r-estado')?.value     || '',
+    rTipo:       document.getElementById('r-tipo')?.value       || '',
+    sCampo:      document.getElementById('s-campo')?.value      || 'tramite',
+    sValor:      document.getElementById('s-valor')?.value      || '',
+  }));
+}
+
+function cerrarSesion() {
+  sessionStorage.removeItem(SESSION_KEY);
+  location.reload();
+}
+
+function restaurarSesion() {
+  const raw = sessionStorage.getItem(SESSION_KEY);
+  if (!raw) return false;
+  const s = JSON.parse(raw);
+  if (!s.logueado) return false;
+
+  // Mostrar app, ocultar login
+  document.getElementById('login-card').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // Restaurar variables globales
+  modoActivo = s.modoActivo || 'rango';
+  pagActual  = s.pagActual  || 1;
+  porPagina  = s.porPagina  || 50;
+
+  // Restaurar campos de búsqueda
+  const set = (id, v) => { const el = document.getElementById(id); if(el && v) el.value = v; };
+  set('s-desde', s.sDesde); set('s-hasta', s.sHasta);
+  set('r-tramite', s.rTramite); set('r-titulo', s.rTitulo);
+  set('r-referencia', s.rReferencia); set('r-monto', s.rMonto);
+  set('r-voucher', s.rVoucher); set('r-estado', s.rEstado);
+  set('r-tipo', s.rTipo); set('s-campo', s.sCampo); set('s-valor', s.sValor);
+
+  // Restaurar tab activa
+  setTab(modoActivo);
+
+  // Restaurar selector de página
+  const ps = document.getElementById('pag-size');
+  if (ps) ps.value = String(porPagina);
+
+  // Restaurar última query y re-ejecutar
+  if (s.query) {
+    ultimaQuery = new URLSearchParams(s.query);
+    fetchPagina();
+  }
+  return true;
+}
+
+// ── LOGIN ───────────────────────────────────────────────────
+async function login() {
+  const u = document.getElementById('l-user').value.trim();
+  const p = document.getElementById('l-pass').value;
+  const m = document.getElementById('msg-login');
+  m.innerText = '';
+  if (!u || !p) { m.innerText = 'Completa todos los campos'; return; }
+  try {
+    const r = await fetch(`${API}/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ usuario:u, clave:p })
+    });
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById('login-card').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      // Establecer rango predeterminado: último mes
+      const hoy  = new Date();
+      const hace = new Date(hoy); hace.setMonth(hace.getMonth()-1);
+      document.getElementById('s-hasta').value = fmtDate(hoy)  + 'T23:59';
+      document.getElementById('s-desde').value = fmtDate(hace) + 'T00:00';
+      guardarSesion();
+    } else { m.innerText = d.message || 'Login incorrecto'; }
+  } catch { m.innerText = 'No se pudo conectar al servidor'; }
+}
+
+const fmtDate = d => d.toISOString().split('T')[0];
+
+// ── TABS ────────────────────────────────────────────────────
+function setTab(t) {
+  modoActivo = t;
+  document.querySelectorAll('.tab').forEach((el,i) =>
+    el.classList.toggle('active', (i===0 && t==='rango')||(i===1 && t==='campo')));
+  document.getElementById('tab-rango').classList.toggle('active', t==='rango');
+  document.getElementById('tab-campo').classList.toggle('active', t==='campo');
+}
+
+// Save on tab change
+function setTabAndSave(t) { setTab(t); guardarSesion(); }
+
+function limpiarBusqueda() {
+  ['s-desde','s-hasta','s-valor',
+   'r-tramite','r-titulo','r-referencia','r-monto','r-voucher','r-tipo']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  const est = document.getElementById('r-estado'); if(est) est.value='';
+  document.getElementById('tbl').innerHTML =
+    `<tr><td colspan="8" style="text-align:center;padding:2.5rem;color:#94a3b8;">Seleccione un filtro y presione Buscar</td></tr>`;
+}
+
+// ── BÚSQUEDA ────────────────────────────────────────────────
+function buildParams() {
+  const p = new URLSearchParams({ modo: modoActivo });
+  if (modoActivo === 'rango') {
+    const d = document.getElementById('s-desde').value;
+    const h = document.getElementById('s-hasta').value;
+    if (!d && !h) return null;
+    if (d) p.set('fecha_desde', d);
+    if (h) p.set('fecha_hasta', h);
+    const map = {
+      'r-tramite':'r_tramite','r-titulo':'r_titulo','r-referencia':'r_referencia',
+      'r-monto':'r_monto','r-voucher':'r_voucher','r-estado':'r_estado','r-tipo':'r_tipo'
+    };
+    Object.entries(map).forEach(([elId, key]) => {
+      const v = document.getElementById(elId)?.value?.trim();
+      if (v) p.set(key, v);
+    });
+  } else {
+    const campo = document.getElementById('s-campo').value;
+    const valor = document.getElementById('s-valor').value.trim();
+    if (!valor) return null;
+    p.set('campo', campo); p.set('valor', valor);
+  }
+  return p;
+}
+
+async function buscar() {
+  pagActual = 1;
+  const p = buildParams();
+  if (!p) {
+    alert(modoActivo === 'rango' ? 'Selecciona al menos una fecha.' : 'Escribe un valor para buscar.');
+    return;
+  }
+  ultimaQuery = p;
+  guardarSesion();
+  await fetchPagina();
+}
+
+async function irPagina(n) {
+  pagActual = n;
+  await fetchPagina();
+}
+
+function cambiarTamano(v) {
+  porPagina = parseInt(v);
+  pagActual = 1;
+  if (ultimaQuery) fetchPagina();
+}
+
+async function fetchPagina() {
+  const tbl = document.getElementById('tbl');
+  tbl.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#64748b;">🔍 Buscando…</td></tr>`;
+  document.getElementById('pag-bar').style.display = 'none';
+
+  const p = new URLSearchParams(ultimaQuery);
+  p.set('pagina', pagActual);
+  p.set('por_pagina', porPagina);
+
+  try {
+    const r    = await fetch(`${API}/buscar?${p.toString()}`);
+    const data = await r.json();
+    tbl.innerHTML = '';
+
+    const rows = data.rows || data;  // compatibilidad
+    if (!Array.isArray(rows) || rows.length === 0) {
+      tbl.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2.5rem;color:#94a3b8;">Sin resultados</td></tr>`;
+      return;
+    }
+
+    rows.forEach(d => {
+      const fecha = d.fecha ? String(d.fecha).split('T')[0] : '—';
+      const monto = d.monto != null ? `$${parseFloat(d.monto).toFixed(2)}` : '—';
+      const est   = d.estado_pago || '—';
+      const estU  = est.toUpperCase();
+      const badge = estU.includes('CANCEL')   ? 'badge-cancelado'
+                  : estU.includes('PEND')     ? 'badge-pendiente'
+                  : estU.includes('ANUL')     ? 'badge-anulado'
+                  : estU.includes('ONLINE')   ? 'badge-online'
+                  : estU.includes('COBRAR')   ? 'badge-cobrar'
+                  : estU.includes('COMPENS')  ? 'badge-compensacion'
+                  : 'badge-otros';
+      tbl.innerHTML += `
+        <tr>
+          <td>${fecha}</td>
+          <td>${d.num_tramite_rp || '—'}</td>
+          <td>${d.titulo || '—'}</td>
+          <td>${d.tr_num_transferencia || '—'}</td>
+          <td>${monto}</td>
+          <td>${d.voucher_id || '—'}</td>
+          <td><span class="badge ${badge}">${est}</span></td>
+          <td>${d.tipo_pago || '—'}</td>
+        </tr>`;
+    });
+
+    // Renderizar paginación
+    if (data.total != null) renderPaginacion(data);
+  } catch (err) {
+    console.error(err);
+    tbl.innerHTML = `<tr><td colspan="8" style="text-align:center;color:red;padding:2rem;">Error de conexión</td></tr>`;
+  }
+}
+
+function renderPaginacion(data) {
+  const { total, pagina, paginas, por_pagina } = data;
+  const bar  = document.getElementById('pag-bar');
+  const info = document.getElementById('pag-info');
+  const ctrl = document.getElementById('pag-controles');
+
+  const desde = (pagina - 1) * por_pagina + 1;
+  const hasta = Math.min(pagina * por_pagina, total);
+  info.innerHTML = `Mostrando <strong>${desde}–${hasta}</strong> de <strong>${total}</strong> registros`;
+
+  // Construir botones: anterior, ventana de páginas, siguiente
+  let html = '';
+  html += `<button class="pag-btn" onclick="irPagina(${pagina-1})" ${pagina<=1?'disabled':''}>‹</button>`;
+
+  const ventana = 5;
+  let ini = Math.max(1, pagina - Math.floor(ventana/2));
+  let fin = Math.min(paginas, ini + ventana - 1);
+  if (fin - ini + 1 < ventana) ini = Math.max(1, fin - ventana + 1);
+
+  if (ini > 1)      html += `<button class="pag-btn" onclick="irPagina(1)">1</button>${ini>2?'<span style="padding:0 .25rem;color:var(--muted)">…</span>':''}`;
+  for (let i = ini; i <= fin; i++)
+    html += `<button class="pag-btn ${i===pagina?'active':''}" onclick="irPagina(${i})">${i}</button>`;
+  if (fin < paginas) html += `${fin<paginas-1?'<span style="padding:0 .25rem;color:var(--muted)">…</span>':''}<button class="pag-btn" onclick="irPagina(${paginas})">${paginas}</button>`;
+
+  html += `<button class="pag-btn" onclick="irPagina(${pagina+1})" ${pagina>=paginas?'disabled':''}>›</button>`;
+
+  ctrl.innerHTML = html;
+  bar.style.display = 'flex';
+}
+
+// ── MODAL HELPERS ───────────────────────────────────────────
+function abrir(id) { document.getElementById(id).classList.add('open'); }
+function cerrar(id) { document.getElementById(id).classList.remove('open'); }
+function cerrarSiFuera(e, id) { if (e.target.id === id) cerrar(id); }
+
+// ── NUEVO DEPÓSITO ──────────────────────────────────────────
+function abrirNuevo() {
+  document.getElementById('n-fecha').value = fmtDate(new Date());
+  document.getElementById('msg-nuevo').innerText = '';
+  ['n-monto','n-ref','n-banco','n-tramite','n-desc'].forEach(i => document.getElementById(i).value='');
+  document.getElementById('n-tipo').value = '';
+  abrir('ov-nuevo');
+}
+
+async function insertarDeposito() {
+  const msg  = document.getElementById('msg-nuevo');
+  const btn  = document.getElementById('btn-guardar');
+  msg.className = 'modal-msg';
+  msg.innerText = '';
+
+  const fecha = document.getElementById('n-fecha').value;
+  const ref   = document.getElementById('n-ref').value.trim();
+  const monto = document.getElementById('n-monto').value;
+
+  if (!fecha || !ref || !monto) {
+    msg.className='modal-msg err'; msg.innerText='⚠ Completa fecha, referencia y monto.'; return;
+  }
+  if (parseFloat(monto) <= 0) {
+    msg.className='modal-msg err'; msg.innerText='⚠ El monto debe ser mayor a 0.'; return;
+  }
+
+  btn.disabled=true; btn.innerText='⏳ Guardando…';
+  try {
+    const r = await fetch(`${API}/insertar`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        fecha_pago: fecha,
+        num_transferencia: ref,
+        monto: parseFloat(monto),
+        banco:       document.getElementById('n-banco').value.trim(),
+        tipo_pago:   document.getElementById('n-tipo').value,
+        num_tramite: document.getElementById('n-tramite').value.trim(),
+        descripcion: document.getElementById('n-desc').value.trim()
+      })
+    });
+    const d = await r.json();
+    if (d.success) {
+      msg.className='modal-msg ok'; msg.innerText=`✅ ${d.message}`;
+      setTimeout(()=>{ cerrar('ov-nuevo'); document.getElementById('s-valor').value=ref; setTab('campo'); document.getElementById('s-campo').value='referencia'; buscar(); }, 1800);
+    } else { msg.className='modal-msg err'; msg.innerText=`❌ ${d.message}`; }
+  } catch { msg.className='modal-msg err'; msg.innerText='❌ Error de conexión.'; }
+  finally { btn.disabled=false; btn.innerText='💾 Guardar Depósito'; }
+}
+
+// ── CARGAR CSV ──────────────────────────────────────────────
+function abrirCsv() {
+  csvFile=null;
+  document.getElementById('input-csv').value='';
+  document.getElementById('csv-preview').innerHTML='';
+  document.getElementById('csv-preview').style.display='none';
+  document.getElementById('upload-log').innerHTML='';
+  document.getElementById('upload-log').style.display='none';
+  document.getElementById('drop-label').innerText='Arrastra tu CSV aquí o haz clic para seleccionar';
+  document.getElementById('drop-sub').innerText='Archivos .csv – máx 10 MB';
+  document.getElementById('btn-cargar').disabled=true;
+  document.getElementById('msg-csv').innerText='';
+  document.getElementById('msg-csv').className='modal-msg';
+  abrir('ov-csv');
+}
+
+function dragOver(e)  { e.preventDefault(); document.getElementById('drop-zone').classList.add('over'); }
+function dragLeave(e) { document.getElementById('drop-zone').classList.remove('over'); }
+function dropFile(e)  { e.preventDefault(); dragLeave(e); seleccionarArchivo(e.dataTransfer.files[0]); }
+
+function seleccionarArchivo(file) {
+  if (!file || !file.name.endsWith('.csv')) {
+    alert('Por favor selecciona un archivo .csv'); return;
+  }
+  csvFile = file;
+  document.getElementById('drop-label').innerText = `📄 ${file.name}`;
+  document.getElementById('drop-sub').innerText   = `${(file.size/1024).toFixed(1)} KB seleccionado`;
+  document.getElementById('btn-cargar').disabled  = false;
+
+  // Preview primeras filas
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').slice(0,6);
+    const prev  = document.getElementById('csv-preview');
+    const rows  = lines.map(l => l.split(','));
+    let html    = '<table><thead><tr>';
+    (rows[0]||[]).forEach(c => html += `<th>${c.trim()}</th>`);
+    html += '</tr></thead><tbody>';
+    rows.slice(1).forEach(r => {
+      html += '<tr>' + r.map(c=>`<td>${c.trim()}</td>`).join('') + '</tr>';
+    });
+    html += '</tbody></table>';
+    prev.innerHTML = html;
+    prev.style.display = 'block';
+  };
+  reader.readAsText(file);
+}
+
+async function cargarCsv() {
+  if (!csvFile) return;
+  const btn = document.getElementById('btn-cargar');
+  const msg = document.getElementById('msg-csv');
+  const log = document.getElementById('upload-log');
+  msg.className='modal-msg'; msg.innerText='';
+  btn.disabled=true; btn.innerText='⏳ Procesando…';
+
+  const fd = new FormData();
+  fd.append('archivo', csvFile);
+
+  try {
+    const r = await fetch(`${API}/cargar-csv`, { method:'POST', body:fd });
+    const d = await r.json();
+
+    if (d.success) {
+      msg.className='modal-msg ok';
+      msg.innerText=`✅ ${d.message}`;
+
+      // Mostrar log de errores si los hay
+      if (d.errores && d.errores.length > 0) {
+        log.innerHTML = '<strong style="color:#b45309">⚠ Registros con error:</strong>' +
+          d.errores.map(e=>`<li>Doc ${e.documento}: ${e.motivo}</li>`).join('');
+        log.style.display='block';
+      }
+      setTimeout(()=>buscar(), 2000);
+    } else {
+      msg.className='modal-msg err'; msg.innerText=`❌ ${d.message}`;
+    }
+  } catch {
+    msg.className='modal-msg err'; msg.innerText='❌ Error de conexión con el servidor.';
+  } finally {
+    btn.disabled=false; btn.innerText='⬆ Cargar y Procesar';
+  }
+}
+
+// ── Restaurar sesión al cargar ──────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (!restaurarSesion()) {
+    // Sin sesión: mostrar login con fechas vacías (las completa el login)
+  }
+});
+</script>
+</body>
+</html>
