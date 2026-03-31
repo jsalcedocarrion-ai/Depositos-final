@@ -128,7 +128,7 @@ app.get('/api/buscar', async (req, res) => {
         tp.nombre::VARCHAR        AS tipo_pago,
         ep.code::VARCHAR          AS estado_pago,
         ce.ci_ruc::TEXT           AS solicitante,
-        CONCAT(ce.nombres, ' ', ce.apellidos)::TEXT AS nombre_solicitante
+        CONCAT(ce.nombres, ' ', ce.apellidos, ' ', ce.razon_social)::TEXT AS nombre_solicitante
       ${joins}
       ${where}
       ORDER BY rp.fecha_pago DESC
