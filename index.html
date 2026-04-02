@@ -223,11 +223,11 @@
     .row2 .field { margin-bottom:.9rem; }
     .field { margin-bottom:.9rem; }
 
-    .modal-foot { margin-top:.25rem; }
+    .modal-foot { margin-top:.25rem; display:flex; flex-direction:column; gap:.6rem; }
     .modal-foot .btn { width:100%; justify-content:center; padding:.7rem; font-size:.95rem; }
-    .modal-msg { min-height:1.1em; font-size:.82rem; text-align:center; margin-top:.6rem; }
-    .modal-msg.ok    { color: var(--success); }
-    .modal-msg.err   { color: var(--danger); }
+    .modal-msg { font-size:.82rem; text-align:center; margin:0; border-radius:.5rem; overflow:hidden; max-height:0; transition: max-height .2s, padding .2s; }
+    .modal-msg.ok  { color: var(--success); background:#f0fdf4; border:1px solid #bbf7d0; padding:.45rem .75rem; max-height:4rem; }
+    .modal-msg.err { color: var(--danger);  background:#fef2f2; border:1px solid #fecaca; padding:.45rem .75rem; max-height:4rem; }
 
     /* ── Upload area ── */
     .drop-zone {
@@ -457,6 +457,7 @@
       <button class="modal-close" onclick="cerrar('ov-nuevo')">✕</button>
     </div>
 
+
     <div class="row2">
       <div class="field"><label>Fecha de Pago <span class="req">*</span></label>
         <input type="date" id="n-fecha"></div>
@@ -465,30 +466,13 @@
     </div>
     <div class="field"><label>Nro. Transferencia / Depósito <span class="req">*</span></label>
       <input type="text" id="n-ref" placeholder="Ej: 0012345678"></div>
-    <div class="row2">
-      <div class="field"><label>Banco</label>
-        <input type="text" id="n-banco" placeholder="Ej: Banco Pichincha"></div>
-      <div class="field"><label>Tipo de Pago</label>
-        <select id="n-tipo">
-          <option value="">— Seleccione —</option>
-          <option value="1">Efectivo</option>
-          <option value="2">Nota de Crédito</option>
-          <option value="3">Cheque</option>
-          <option value="4">Transferencia</option>
-          <option value="5">Tarjeta</option>
-        </select></div>
-    </div>
-    <div class="field"><label>Número de Trámite</label>
-      <input type="text" id="n-tramite" placeholder="Ej: Nro. trámite…"></div>
-    <div class="field"><label>Descripción / Observación</label>
-      <textarea id="n-desc" placeholder="Observaciones adicionales…"></textarea></div>
 
     <div class="modal-foot">
       <button class="btn btn-success" id="btn-guardar" onclick="insertarDeposito()">
         💾 Guardar Depósito
       </button>
+      <div class="modal-msg" id="msg-nuevo"></div>
     </div>
-    <div class="modal-msg" id="msg-nuevo"></div>
   </div>
 </div>
 
@@ -536,8 +520,8 @@
 
 <!-- ═══════════ SCRIPT ═══════════ -->
 <script>
-//const API = 'http://localhost:3000/api';
-const API_BASE = "https://undealt-hystricomorphic-velma.ngrok-free.dev/api";
+const API = 'http://localhost:3000/api';
+//const API_BASE = "https://undealt-hystricomorphic-velma.ngrok-free.dev/api";
 let csvFile     = null;
 let modoActivo  = 'rango';
 let pagActual   = 1;
@@ -804,8 +788,7 @@ function cerrarSiFuera(e, id) { if (e.target.id === id) cerrar(id); }
 function abrirNuevo() {
   document.getElementById('n-fecha').value = fmtDate(new Date());
   document.getElementById('msg-nuevo').innerText = '';
-  ['n-monto','n-ref','n-banco','n-tramite','n-desc'].forEach(i => document.getElementById(i).value='');
-  document.getElementById('n-tipo').value = '';
+  ['n-monto','n-ref'].forEach(i => document.getElementById(i).value='');
   abrir('ov-nuevo');
 }
 
@@ -833,11 +816,7 @@ async function insertarDeposito() {
       body: JSON.stringify({
         fecha_pago: fecha,
         num_transferencia: ref,
-        monto: parseFloat(monto),
-        banco:       document.getElementById('n-banco').value.trim(),
-        tipo_pago:   document.getElementById('n-tipo').value,
-        num_tramite: document.getElementById('n-tramite').value.trim(),
-        descripcion: document.getElementById('n-desc').value.trim()
+        monto: parseFloat(monto)
       })
     });
     const d = await r.json();
