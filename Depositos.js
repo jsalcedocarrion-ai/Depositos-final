@@ -143,51 +143,76 @@ app.get('/api/buscar', async (req, res) => {
   }
 }); 
 
-// ─── INSERTAR DEPÓSITO MANUAL ─────────────────────────────────────────────────
+// ─── INSERTAR DEPÓSITO MANUAL (Réplica exacta del FoxPro) ─────────────────────
 app.post('/api/insertar', async (req, res) => {
-  const { fecha_pago, num_transferencia, monto, banco, tipo_pago, num_tramite, descripcion } = req.body;
+  const { 
+    fecha_pago,           // wwfecha
+    num_transferencia,    // documento
+    monto                 // wwMONTO
+  } = req.body;
 
-  if (!fecha_pago || !num_transferencia || !monto)
-    return res.status(400).json({ success: false, message: 'Faltan campos obligatorios.' });
+  // Validación básica
+  if (!fecha_pago || !num_transferencia || !monto) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Faltan campos obligatorios (fecha, número de transferencia y monto).' 
+    });
+  }
 
-  const cT = await poolTenka.connect();
-  const cO = await poolOdoo.connect();
+  const documento = String(num_transferencia).trim();
+
+  const client = await poolTenka.connect();   // Solo usamos TENKA
+
   try {
-    await cT.query('BEGIN'); await cO.query('BEGIN');
+    await client.query('BEGIN');
 
-    // TENKA – cabecera
-    const r1 = await cT.query(
-      `INSERT INTO "financiero"."ren_pago"
-         (fecha_pago, valor, observacion, banco, num_tramite_rp, create_date)
-       VALUES ($1,$2,$3,$4,$5,NOW()) RETURNING id`,
-      [fecha_pago, parseFloat(monto), descripcion||null, banco||null, num_tramite||null]
-    );
-    const pagoId = r1.rows[0].id;
-
-    // TENKA – detalle
-    await cT.query(
-      `INSERT INTO "financiero"."ren_pago_detalle"
-         (pago, tr_num_transferencia, tipo_pago, create_date)
-       VALUES ($1,$2,$3,NOW())`,
-      [pagoId, num_transferencia, tipo_pago||null]
+    // 1. Verificar si el depósito ya existe (igual que en FoxPro)
+    const existe = await client.query(
+      `SELECT fecha 
+       FROM depositos.depositos 
+       WHERE TRIM(documento) = $1 
+       LIMIT 1`,
+      [documento]
     );
 
-    // ODOO – voucher
-    const r2 = await cO.query(
-      `INSERT INTO "public"."voucher_payment"
-         (number, amount, date, bank, description, create_date)
-       VALUES ($1,$2,$3,$4,$5,NOW()) RETURNING id`,
-      [num_transferencia, parseFloat(monto), fecha_pago, banco||null, descripcion||null]
+    if (existe.rowCount > 0) {
+      const fechaExistente = existe.rows[0].fecha;
+      await client.query('ROLLBACK');
+      return res.status(409).json({ 
+        success: false, 
+        message: `Depósito ya registrado el día ${fechaExistente.toISOString().split('T')[0]}. No se permiten duplicados.` 
+      });
+    }
+
+    // 2. Insertar el depósito (exactamente como en el código FoxPro)
+    await client.query(
+      `INSERT INTO depositos.depositos
+         (fecha, codigo, concepto, tipo, documento, oficina, monto, saldo, tenka, olimpo, usado)
+       VALUES ($1, 'ING. MANUAL', 'TRANSACCION MANUAL', 'M', $2, 'MANUAL', $3, 0, 0, 0, 0)`,
+      [fecha_pago, documento, parseFloat(monto)]
     );
 
-    await cT.query('COMMIT'); await cO.query('COMMIT');
-    res.json({ success: true, message: 'Depósito registrado en ambas bases.', tenka_pago_id: pagoId, odoo_voucher_id: r2.rows[0].id });
+    await client.query('COMMIT');
+
+    res.json({ 
+      success: true, 
+      message: 'El depósito se registró correctamente',
+      documento: documento
+    });
+
   } catch (err) {
-    await cT.query('ROLLBACK').catch(()=>{});
-    await cO.query('ROLLBACK').catch(()=>{});
-    res.status(500).json({ success: false, message: 'Error: ' + err.message });
-  } finally { cT.release(); cO.release(); }
+    await client.query('ROLLBACK').catch(() => {});
+
+    console.error('❌ Error al insertar depósito manual:', err.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error al guardar el depósito: ' + err.message 
+    });
+  } finally {
+    client.release();
+  }
 });
+
 
 // ─── CARGAR CSV (réplica de cargar_datos.prg) ─────────────────────────────────
 //
